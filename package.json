@@ -1,0 +1,14 @@
+{
+  "name": "sheridan-cookbook",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "site"
+  ],
+  "scripts": {
+    "sync": "node scripts/sync-content.mjs",
+    "dev": "npm run sync && npm run dev -w sheridan-cookbook-site -- --host 0.0.0.0 --port 4321",
+    "build": "npm run sync && npm run build -w sheridan-cookbook-site",
+    "preview": "npm run preview -w sheridan-cookbook-site -- --host 0.0.0.0 --port 4321"
+  }
+}

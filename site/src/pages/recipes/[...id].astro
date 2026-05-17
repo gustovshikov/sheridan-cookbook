@@ -1,0 +1,43 @@
+---
+import { getCollection, render } from 'astro:content';
+import SiteLayout from '../../layouts/SiteLayout.astro';
+
+export async function getStaticPaths() {
+  const recipes = await getCollection('recipes');
+
+  return recipes.map((recipe) => ({
+    params: { id: recipe.id },
+    props: { recipe },
+  }));
+}
+
+const { recipe } = Astro.props;
+const allRecipes = (await getCollection('recipes')).sort((a, b) =>
+  a.data.title.localeCompare(b.data.title),
+);
+const navRecipes = allRecipes.map((recipe) => ({
+  id: recipe.id,
+  title: recipe.data.title,
+  category: recipe.data.category,
+  folderPath: recipe.data.folderPath,
+  sourcePath: recipe.data.sourcePath,
+  url: `/recipes/${recipe.id}/`,
+}));
+const { Content, headings } = await render(recipe);
+const toc = headings.filter((heading) => heading.depth >= 2 && heading.depth <= 4);
+---
+
+<SiteLayout
+  title={`${recipe.data.title} | Sheridan Family Cookbook`}
+  recipes={navRecipes}
+  currentRecipeId={recipe.id}
+  toc={toc}
+>
+  <div class="recipe-page">
+    <article class="recipe-article">
+      <h1>{recipe.data.title}</h1>
+      <p class="recipe-meta">{recipe.data.category} · {recipe.data.sourcePath}</p>
+      <Content />
+    </article>
+  </div>
+</SiteLayout>
