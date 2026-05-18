@@ -68,6 +68,7 @@ Most commands should be run from the repo root:
 npm run sync
 npm run dev
 npm run build
+npm test
 npm run preview
 ```
 

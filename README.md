@@ -58,6 +58,12 @@ Build the site:
 npm run build
 ```
 
+Run the content, build, and built-link checks:
+
+```sh
+npm test
+```
+
 Preview the built static site:
 
 ```sh
@@ -338,8 +344,8 @@ See `ops/docker/README.md` for Docker-specific notes.
 Before publishing changes:
 
 ```sh
-npm run build
-docker compose config
+npm test
+npm run test:docker
 ```
 
 For a local container smoke test:

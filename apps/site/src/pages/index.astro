@@ -23,10 +23,16 @@ const sourceCount = new Set(recipes.map((recipe) => recipe.data.source).filter(B
 const archivedScanCount = recipes.filter((recipe) =>
   recipe.body.includes('/resources/archived-scans/'),
 ).length;
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 
 const recipesByCategory = categories.map((category) => ({
   category,
-  id: category.toLowerCase(),
+  id: slugify(category),
   recipes: recipes.filter((recipe) => recipe.data.category === category),
 }));
 

@@ -33,9 +33,15 @@ const {
 } = Astro.props;
 
 const categories = [...new Set(recipes.map((recipe) => recipe.category))].sort();
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 const recipesByCategory = categories.map((category) => ({
   category,
-  id: category.toLowerCase(),
+  id: slugify(category),
   recipes: recipes
     .filter((recipe) => recipe.category === category)
     .sort((a, b) => a.title.localeCompare(b.title)),
