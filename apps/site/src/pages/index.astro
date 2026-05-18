@@ -1,0 +1,107 @@
+---
+import { getCollection } from 'astro:content';
+import SourceLinks from '../components/SourceLinks.astro';
+import SiteLayout from '../layouts/SiteLayout.astro';
+
+export const prerender = true;
+
+const recipes = (await getCollection('recipes')).sort((a, b) =>
+  a.data.title.localeCompare(b.data.title),
+);
+const navRecipes = recipes.map((recipe) => ({
+  id: recipe.id,
+  title: recipe.data.title,
+  category: recipe.data.category,
+  folderPath: recipe.data.folderPath,
+  sourcePath: recipe.data.sourcePath,
+  url: `/recipes/${recipe.id}/`,
+}));
+
+const categories = [...new Set(recipes.map((recipe) => recipe.data.category))].sort();
+const recipeCount = recipes.length;
+const sourceCount = new Set(recipes.map((recipe) => recipe.data.source).filter(Boolean)).size;
+const archivedScanCount = recipes.filter((recipe) =>
+  recipe.body.includes('/resources/archived-scans/'),
+).length;
+
+const recipesByCategory = categories.map((category) => ({
+  category,
+  id: category.toLowerCase(),
+  recipes: recipes.filter((recipe) => recipe.data.category === category),
+}));
+
+const toc = recipesByCategory.map(({ category, id }) => ({
+  depth: 2,
+  slug: id,
+  text: category,
+}));
+---
+
+<SiteLayout title="Sheridan Family Cookbook" recipes={navRecipes} currentPage="home" toc={toc}>
+  <section class="hero" aria-labelledby="page-title">
+    <div>
+      <h1 id="page-title">Sheridan Family Cookbook</h1>
+      <p>
+        A single place to collect Sheridan family recipes, scanned originals, cooking notes, and the
+        source details that keep each recipe connected to the people who shared it.
+      </p>
+    </div>
+    <aside class="feature-panel" aria-label="Cookbook statistics">
+      <h2>Cookbook Stats</h2>
+      <div class="feature-grid">
+        <div class="feature-tile">
+          <strong>{recipeCount}</strong>
+          <span>recipes collected</span>
+        </div>
+        <div class="feature-tile">
+          <strong>{categories.length}</strong>
+          <span>categories</span>
+        </div>
+        <div class="feature-tile">
+          <strong>{archivedScanCount}</strong>
+          <span>with archived scans</span>
+        </div>
+        <div class="feature-tile">
+          <strong>{sourceCount}</strong>
+          <span>known sources</span>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  {
+    recipesByCategory.map(({ category, id, recipes }) => (
+      <section class="section" id={id} aria-labelledby={`${id}-title`}>
+        <div class="section-header">
+          <h2 id={`${id}-title`}>{category}</h2>
+          <span>{recipes.length} recipes</span>
+        </div>
+        <div class="recipe-grid">
+          {recipes.map((recipe) => (
+            <article class="recipe-card">
+              <div>
+                <div class="card-art" aria-hidden="true" />
+                <h3>
+                  <a href={`/recipes/${recipe.id}/`}>{recipe.data.title}</a>
+                </h3>
+                <p class="recipe-card-meta">
+                  Source: <SourceLinks source={recipe.data.source} fallback={recipe.data.sourcePath} />
+                </p>
+                {
+                  recipe.data.tags.length > 0 && (
+                    <ul class="tag-list" aria-label={`${recipe.data.title} tags`}>
+                      {recipe.data.tags.slice(0, 4).map((tag) => (
+                        <li>{tag}</li>
+                      ))}
+                    </ul>
+                  )
+                }
+              </div>
+              <a class="recipe-open-link" href={`/recipes/${recipe.id}/`}>Open recipe</a>
+            </article>
+          ))}
+        </div>
+      </section>
+    ))
+  }
+</SiteLayout>

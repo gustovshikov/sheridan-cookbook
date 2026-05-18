@@ -1,0 +1,53 @@
+---
+import { sourceNodes } from '../lib/sources';
+
+interface Props {
+  source?: string;
+  fallback?: string;
+}
+
+const { source, fallback = '' } = Astro.props;
+const sourceText = source?.trim() || fallback;
+const knownSources = sourceNodes.map((source) => ({
+  label: source.match,
+  href: `/family-sources/#source-${source.slug}`,
+}));
+
+const linkifySource = (value: string) => {
+  const segments: { text: string; href?: string }[] = [];
+  let cursor = 0;
+
+  while (cursor < value.length) {
+    const nextMatch = knownSources
+      .map((source) => ({ ...source, index: value.indexOf(source.label, cursor) }))
+      .filter((source) => source.index >= 0)
+      .sort((a, b) => a.index - b.index || b.label.length - a.label.length)[0];
+
+    if (!nextMatch) {
+      segments.push({ text: value.slice(cursor) });
+      break;
+    }
+
+    if (nextMatch.index > cursor) {
+      segments.push({ text: value.slice(cursor, nextMatch.index) });
+    }
+
+    segments.push({ text: nextMatch.label, href: nextMatch.href });
+    cursor = nextMatch.index + nextMatch.label.length;
+  }
+
+  return segments;
+};
+
+const segments = sourceText ? linkifySource(sourceText) : [];
+---
+
+{
+  sourceText && (
+    <span class="source-links">
+      {segments.map((segment) =>
+        segment.href ? <a href={segment.href}>{segment.text}</a> : <span>{segment.text}</span>,
+      )}
+    </span>
+  )
+}

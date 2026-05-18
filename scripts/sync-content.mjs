@@ -4,15 +4,15 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
-const vaultRoot = repoRoot;
+const contentRoot = path.join(repoRoot, 'content');
 
-const recipesRoot = path.join(vaultRoot, 'recipes');
-const resourceDir = path.join(vaultRoot, 'Resources');
+const recipesRoot = path.join(contentRoot, 'recipes');
+const resourceDir = path.join(contentRoot, 'resources');
 
 const target = {
   name: 'Astro',
-  contentRoot: path.join(repoRoot, 'site', 'src', 'content', 'recipes'),
-  publicResources: path.join(repoRoot, 'site', 'public', 'resources'),
+  contentRoot: path.join(repoRoot, 'apps', 'site', 'src', 'content', 'recipes'),
+  publicResources: path.join(repoRoot, 'apps', 'site', 'public', 'resources'),
 };
 
 const titleCase = (value) =>
@@ -29,13 +29,106 @@ const slugify = (value) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-const yamlString = (value) => JSON.stringify(value);
+const parseYamlScalar = (value) => {
+  const trimmed = value.trim();
+
+  if (trimmed === '[]') return [];
+
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return trimmed.slice(1, -1);
+    }
+  }
+
+  return trimmed;
+};
+
+const parseFrontmatter = (frontmatter) => {
+  const data = {};
+  let currentArrayKey = null;
+
+  for (const line of frontmatter.split(/\r?\n/)) {
+    if (!line.trim() || line.trimStart().startsWith('#')) continue;
+
+    const listItem = line.match(/^\s*-\s+(.+)$/);
+    if (listItem && currentArrayKey) {
+      data[currentArrayKey].push(parseYamlScalar(listItem[1]));
+      continue;
+    }
+
+    const keyValue = line.match(/^([A-Za-z0-9_-]+):(?:\s*(.*))?$/);
+    if (!keyValue) {
+      currentArrayKey = null;
+      continue;
+    }
+
+    const [, key, rawValue = ''] = keyValue;
+    const value = rawValue.trim();
+
+    if (value === '') {
+      data[key] = [];
+      currentArrayKey = key;
+      continue;
+    }
+
+    data[key] = parseYamlScalar(value);
+    currentArrayKey = null;
+  }
+
+  return data;
+};
+
+const splitFrontmatter = (markdown) => {
+  if (!markdown.startsWith('---\n')) {
+    return { frontmatter: {}, body: markdown };
+  }
+
+  const match = markdown.match(/^---\n([\s\S]*?)\n---\n?/);
+  if (!match) {
+    return { frontmatter: {}, body: markdown };
+  }
+
+  return {
+    frontmatter: parseFrontmatter(match[1]),
+    body: markdown.slice(match[0].length),
+  };
+};
+
+const yamlScalar = (value) => JSON.stringify(String(value));
+
+const serializeFrontmatter = (frontmatter) => {
+  const lines = ['---'];
+
+  for (const [key, value] of Object.entries(frontmatter)) {
+    if (value === undefined || value === null) continue;
+
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        lines.push(`${key}: []`);
+        continue;
+      }
+
+      lines.push(`${key}:`);
+      for (const item of value) {
+        lines.push(`  - ${yamlScalar(item)}`);
+      }
+      continue;
+    }
+
+    lines.push(`${key}: ${yamlScalar(value)}`);
+  }
+
+  lines.push('---', '');
+  return lines.join('\n');
+};
 
 const rewriteResourceLinks = (markdown) =>
-  markdown.replace(/\]\(((?:\.\.\/)+Resources\/([^)]+))\)/g, '](/resources/$2)');
-
-const stripExistingFrontmatter = (markdown) =>
-  markdown.startsWith('---\n') ? markdown.replace(/^---\n[\s\S]*?\n---\n?/, '') : markdown;
+  markdown.replace(/\]\(((?:\.\.\/)+(?:Resources|resources)\/([^)]+))\)/g, '](/resources/$2)');
 
 const extractTitle = (markdown, fallback) => {
   const match = markdown.match(/^#\s+(.+)$/m);
@@ -45,18 +138,25 @@ const extractTitle = (markdown, fallback) => {
 const removeFirstH1 = (markdown) => markdown.replace(/^#\s+.+\n+/, '');
 
 const prepRecipeMarkdown = (source, sourcePath, category, folderPath, fallbackTitle) => {
-  const withoutFrontmatter = stripExistingFrontmatter(source);
-  const title = extractTitle(withoutFrontmatter, fallbackTitle);
-  const body = rewriteResourceLinks(removeFirstH1(withoutFrontmatter)).trimStart();
-  const frontmatter = [
-    '---',
-    `title: ${yamlString(title)}`,
-    `category: ${yamlString(category)}`,
-    `folderPath: ${yamlString(folderPath)}`,
-    `sourcePath: ${yamlString(sourcePath)}`,
-    '---',
-    '',
-  ].join('\n');
+  const { frontmatter: sourceFrontmatter, body: sourceBody } = splitFrontmatter(source);
+  const title = sourceFrontmatter.title
+    ? String(sourceFrontmatter.title)
+    : extractTitle(sourceBody, fallbackTitle);
+  const body = rewriteResourceLinks(removeFirstH1(sourceBody.trimStart())).trimStart();
+  const {
+    title: _title,
+    category: _category,
+    folderPath: _folderPath,
+    sourcePath: _sourcePath,
+    ...recipeFrontmatter
+  } = sourceFrontmatter;
+  const frontmatter = serializeFrontmatter({
+    title,
+    category,
+    ...recipeFrontmatter,
+    folderPath,
+    sourcePath,
+  });
 
   return `${frontmatter}${body}`;
 };
@@ -108,7 +208,7 @@ const collectRecipes = async (recipeDirs) => {
       const pathParts = file.split(path.sep);
       const folderParts = pathParts.slice(0, -1);
       const fileName = pathParts.at(-1);
-      const sourcePath = toPosixPath('recipes', dir, ...pathParts);
+      const sourcePath = toPosixPath('content', 'recipes', dir, ...pathParts);
       const sourceAbsolutePath = path.join(absoluteDir, file);
       const category = titleCase(dir);
       const categorySlug = slugify(dir);

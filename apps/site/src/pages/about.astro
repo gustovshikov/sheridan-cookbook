@@ -1,0 +1,300 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { sourceNodes, type SourceNode } from '../lib/sources';
+
+export const prerender = true;
+
+const recipes = (await getCollection('recipes')).sort((a, b) =>
+  a.data.title.localeCompare(b.data.title),
+);
+const navRecipes = recipes.map((recipe) => ({
+  id: recipe.id,
+  title: recipe.data.title,
+  category: recipe.data.category,
+  folderPath: recipe.data.folderPath,
+  sourcePath: recipe.data.sourcePath,
+  url: `/recipes/${recipe.id}/`,
+}));
+
+const recipesForSource = (node: SourceNode) =>
+  recipes.filter((recipe) => {
+    const source = recipe.data.source ?? '';
+    return node.exact ? source === node.match : source.includes(node.match);
+  });
+
+const sourceBySlug = (slug: string) => sourceNodes.find((source) => source.slug === slug);
+const recipeCountLabel = (count: number) => `${count} ${count === 1 ? 'recipe' : 'recipes'}`;
+
+const treeRows = [
+  {
+    label: 'Earlier Generation',
+    sources: [sourceBySlug('nellie-lustgraaf')].filter(Boolean),
+  },
+  {
+    label: 'Grandparents',
+    sources: [sourceBySlug('jane-burchard'), sourceBySlug('bill-burchard')].filter(Boolean),
+  },
+  {
+    label: 'Family Sources',
+    sources: [sourceBySlug('carol-sheridan'), sourceBySlug('aunt-diane')].filter(Boolean),
+  },
+  {
+    label: 'Current Generation',
+    sources: [sourceBySlug('eric-sheridan'), sourceBySlug('courtney-sheridan')].filter(Boolean),
+  },
+];
+
+const toc = [{ depth: 2, slug: 'family-tree', text: 'Family Tree' }];
+---
+
+<SiteLayout
+  title="About | Sheridan Family Cookbook"
+  description="Family source overview for the Sheridan Family Cookbook."
+  recipes={navRecipes}
+  currentPage="about"
+  toc={toc}
+>
+  <article class="about-page">
+    <header class="about-header">
+      <p>Sheridan Family Cookbook</p>
+      <h1>About This Cookbook</h1>
+      <p>
+        This cookbook keeps Sheridan family recipes, scanned originals, and source notes in one
+        place so the recipes stay connected to the people who shared them.
+      </p>
+      <a class="source-directory-link" href="/family-sources/">View Family Source Directory</a>
+    </header>
+
+    <section id="family-tree" class="about-section" aria-labelledby="family-tree-title">
+      <div class="section-heading">
+        <p>Source Overview</p>
+        <h2 id="family-tree-title">Family Tree</h2>
+      </div>
+      <div class="family-tree" aria-label="Known family recipe source tree">
+        {
+          treeRows.map((row, index) => (
+            <div class:list={['tree-level', { 'has-connector': index > 0 }]}>
+              <h3>{row.label}</h3>
+              <div class:list={['tree-row', { 'single-node': row.sources.length === 1 }]}>
+                {row.sources.map((source) => {
+                  const recipeCount = recipesForSource(source).length;
+
+                  return (
+                    <a
+                      class:list={['family-node', { primary: source.primary }]}
+                      href={`/family-sources/#source-${source.slug}`}
+                    >
+                      <strong>{source.name}</strong>
+                      <span>{source.treeNote ?? source.relation}</span>
+                      <small>{recipeCountLabel(recipeCount)}</small>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+  </article>
+</SiteLayout>
+
+<style>
+  .about-page {
+    padding: 1.5rem 0 2.5rem;
+  }
+
+  .about-header,
+  .about-section {
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: var(--paper);
+    padding: clamp(1.1rem, 3vw, 1.75rem);
+  }
+
+  .about-header p:first-child,
+  .section-heading p {
+    margin: 0 0 0.4rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .about-header h1,
+  .section-heading h2 {
+    margin: 0;
+    font-size: clamp(2rem, 4vw, 2.625rem);
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .about-header p:last-of-type {
+    max-width: 44rem;
+    margin: 0.8rem 0 0;
+    color: var(--muted);
+  }
+
+  .source-directory-link {
+    display: inline-flex;
+    margin-top: 1rem;
+    border: 1px solid var(--accent);
+    border-radius: 0.45rem;
+    background: var(--paper-strong);
+    color: var(--accent-strong);
+    font-weight: 700;
+    padding: 0.55rem 0.7rem;
+    text-decoration: none;
+  }
+
+  .source-directory-link:hover,
+  .source-directory-link:focus-visible {
+    background: var(--nav-hover);
+    outline: 2px solid var(--focus-ring);
+  }
+
+  .about-section {
+    margin-top: 1rem;
+  }
+
+  .family-tree {
+    display: grid;
+    gap: 0;
+    margin-top: 1.4rem;
+  }
+
+  .tree-level {
+    position: relative;
+    display: grid;
+    gap: 0.7rem;
+    justify-items: center;
+    padding-top: 1.2rem;
+  }
+
+  .tree-level:first-child {
+    padding-top: 0;
+  }
+
+  .tree-level.has-connector::before {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 2px;
+    height: 1.2rem;
+    background: var(--line);
+    content: '';
+  }
+
+  .tree-level h3 {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .tree-row {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.85rem;
+    width: 100%;
+  }
+
+  .tree-row::before {
+    position: absolute;
+    top: -0.42rem;
+    left: 20%;
+    right: 20%;
+    height: 2px;
+    background: var(--line);
+    content: '';
+  }
+
+  .tree-level:first-child .tree-row::before,
+  .tree-row.single-node::before {
+    display: none;
+  }
+
+  .family-node {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 0.2rem;
+    width: min(13.5rem, 100%);
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: var(--paper-strong);
+    color: var(--ink);
+    padding: 0.85rem;
+    text-align: center;
+    text-decoration: none;
+  }
+
+  .family-node::before {
+    position: absolute;
+    top: -0.44rem;
+    left: 50%;
+    width: 2px;
+    height: 0.44rem;
+    background: var(--line);
+    content: '';
+  }
+
+  .tree-level:first-child .family-node::before {
+    display: none;
+  }
+
+  .family-node:hover,
+  .family-node:focus-visible {
+    border-color: var(--accent);
+    background: var(--nav-hover);
+    outline: 2px solid var(--focus-ring);
+  }
+
+  .family-node.primary {
+    border-color: var(--accent);
+  }
+
+  .family-node strong {
+    line-height: 1.2;
+  }
+
+  .family-node span,
+  .family-node small {
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+
+  @media (max-width: 760px) {
+    .about-page {
+      padding: 0;
+    }
+
+    .about-header,
+    .about-section {
+      border-right: 0;
+      border-left: 0;
+      border-radius: 0;
+      padding: 1.15rem 1rem 1.35rem;
+    }
+
+    .tree-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tree-row::before {
+      display: none;
+    }
+
+    .family-node {
+      width: 100%;
+      text-align: left;
+    }
+  }
+</style>

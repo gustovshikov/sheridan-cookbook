@@ -1,0 +1,210 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { getNavRecipes } from '../lib/nav';
+import { siteConfig } from '../lib/site-config';
+
+export const prerender = true;
+
+const navRecipes = await getNavRecipes();
+const submissionEmail = siteConfig.submissionEmail;
+const emailSubject = encodeURIComponent('Sheridan Family Cookbook recipe submission');
+const emailBody = encodeURIComponent(`Recipe title:
+Source or family member:
+Category:
+Servings:
+Prep/cook time:
+
+Ingredients:
+
+Instructions:
+
+Notes or family story:
+
+Attached images/scans:
+`);
+const emailHref = submissionEmail
+  ? `mailto:${submissionEmail}?subject=${emailSubject}&body=${emailBody}`
+  : '';
+const toc = [
+  { depth: 2, slug: 'what-to-send', text: 'What To Send' },
+  { depth: 2, slug: 'photos-and-scans', text: 'Photos And Scans' },
+  { depth: 2, slug: 'what-happens-next', text: 'What Happens Next' },
+];
+---
+
+<SiteLayout
+  title="Submit Recipe | Sheridan Family Cookbook"
+  description="How to submit a Sheridan family recipe by email."
+  recipes={navRecipes}
+  currentPage="add"
+  toc={toc}
+>
+  <article class="submit-page">
+    <header class="submit-header">
+      <p>Sheridan Family Cookbook</p>
+      <h1>Submit Recipe</h1>
+      <p>
+        Send recipes, scans, or photos by email. The cookbook admin will review, format, and add
+        accepted recipes to the site.
+      </p>
+      {
+        submissionEmail ? (
+          <a class="primary-action" href={emailHref}>Email a Recipe</a>
+        ) : (
+          <p class="missing-email">Ask the cookbook admin for the submission email address.</p>
+        )
+      }
+    </header>
+
+    <section id="what-to-send" class="submit-section">
+      <div class="section-heading">
+        <p>Recipe Details</p>
+        <h2>What To Send</h2>
+      </div>
+      <ul class="check-list">
+        <li>Recipe title.</li>
+        <li>Who the recipe came from, such as Carol Sheridan or Grandma Jane Burchard.</li>
+        <li>Ingredients and instructions, if already typed.</li>
+        <li>Servings, prep time, cook time, temperature, or notes if known.</li>
+        <li>Any family story, holiday use, substitutions, or "this is how we actually make it" notes.</li>
+      </ul>
+    </section>
+
+    <section id="photos-and-scans" class="submit-section">
+      <div class="section-heading">
+        <p>Images</p>
+        <h2>Photos And Scans</h2>
+      </div>
+      <p>
+        Attach clear photos or scans of the original recipe card, cookbook page, or handwritten
+        notes. For multi-page recipes, send all pages in order and mention if any page is missing or
+        hard to read.
+      </p>
+    </section>
+
+    <section id="what-happens-next" class="submit-section">
+      <div class="section-heading">
+        <p>Review</p>
+        <h2>What Happens Next</h2>
+      </div>
+      <p>
+        The admin keeps the original scans in the project archive, transcribes the recipe into the
+        standard Markdown format, adds source notes, and publishes it after review.
+      </p>
+      {
+        submissionEmail && (
+          <p class="email-note">
+            Current submission email: <a href={`mailto:${submissionEmail}`}>{submissionEmail}</a>
+          </p>
+        )
+      }
+    </section>
+  </article>
+
+  <style>
+    .submit-page {
+      padding: 1.5rem 0 2.5rem;
+    }
+
+    .submit-header,
+    .submit-section {
+      border: 1px solid var(--line);
+      border-radius: 0.5rem;
+      background: var(--paper);
+      padding: clamp(1.1rem, 3vw, 1.75rem);
+    }
+
+    .submit-section {
+      margin-top: 1rem;
+    }
+
+    .submit-header p:first-child,
+    .section-heading p {
+      margin: 0 0 0.4rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .submit-header h1,
+    .section-heading h2 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 2.625rem);
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .section-heading h2 {
+      font-size: 1.25rem;
+    }
+
+    .submit-header p:not(:first-child),
+    .submit-section p,
+    .check-list {
+      max-width: 44rem;
+      color: var(--muted);
+    }
+
+    .submit-header p:not(:first-child) {
+      margin: 0.8rem 0 0;
+    }
+
+    .submit-section p {
+      margin: 0.8rem 0 0;
+    }
+
+    .check-list {
+      display: grid;
+      gap: 0.45rem;
+      margin: 0.9rem 0 0;
+      padding-left: 1.25rem;
+    }
+
+    .primary-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.35rem;
+      margin-top: 1.1rem;
+      border: 1px solid var(--accent);
+      border-radius: 0.45rem;
+      background: var(--paper-strong);
+      color: var(--accent-strong);
+      font-weight: 700;
+      padding: 0.52rem 0.75rem;
+      text-decoration: none;
+    }
+
+    .primary-action:hover,
+    .primary-action:focus-visible {
+      background: var(--nav-hover);
+      outline: 2px solid var(--focus-ring);
+    }
+
+    .missing-email {
+      border-left: 3px solid var(--gold);
+      padding-left: 0.75rem;
+    }
+
+    .email-note a {
+      color: var(--accent-strong);
+      font-weight: 700;
+    }
+
+    @media (max-width: 760px) {
+      .submit-page {
+        padding: 0;
+      }
+
+      .submit-header,
+      .submit-section {
+        border-right: 0;
+        border-left: 0;
+        border-radius: 0;
+        padding: 1.15rem 1rem 1.35rem;
+      }
+    }
+  </style>
+</SiteLayout>

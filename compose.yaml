@@ -1,0 +1,19 @@
+name: sheridan-cookbook
+
+services:
+  nginx:
+    image: sheridan-cookbook-site:local
+    container_name: sheridan-cookbook-nginx
+    build:
+      context: .
+      dockerfile: ops/docker/Dockerfile
+    labels:
+      org.opencontainers.image.title: "Sheridan Family Cookbook"
+      org.opencontainers.image.source: "git@github.com:gustovshikov/sheridan-cookbook.git"
+      com.cyberhelm.site: "cookbook.cyberhelm.com"
+    ports:
+      - "${COOKBOOK_HTTP_PORT:-8080}:80"
+
+networks:
+  default:
+    name: sheridan-cookbook-network

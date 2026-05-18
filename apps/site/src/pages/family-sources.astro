@@ -1,0 +1,290 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { sourceNodes, type SourceNode } from '../lib/sources';
+
+export const prerender = true;
+
+const recipes = (await getCollection('recipes')).sort((a, b) =>
+  a.data.title.localeCompare(b.data.title),
+);
+const navRecipes = recipes.map((recipe) => ({
+  id: recipe.id,
+  title: recipe.data.title,
+  category: recipe.data.category,
+  folderPath: recipe.data.folderPath,
+  sourcePath: recipe.data.sourcePath,
+  url: `/recipes/${recipe.id}/`,
+}));
+
+const recipesForSource = (node: SourceNode) =>
+  recipes.filter((recipe) => {
+    const source = recipe.data.source ?? '';
+    return node.exact ? source === node.match : source.includes(node.match);
+  });
+
+const sourcesWithRecipes = sourceNodes.map((node) => ({
+  ...node,
+  recipes: recipesForSource(node),
+}));
+
+const uncategorizedSources = [...new Set(recipes.map((recipe) => recipe.data.source).filter(Boolean))]
+  .filter((source) => !sourceNodes.some((node) => (node.exact ? source === node.match : source.includes(node.match))))
+  .sort();
+
+const recipeCountLabel = (count: number) => `${count} ${count === 1 ? 'recipe' : 'recipes'}`;
+const toc = [
+  { depth: 2, slug: 'source-overview', text: 'Source Overview' },
+  ...sourcesWithRecipes.map((source) => ({
+    depth: 2,
+    slug: `source-${source.slug}`,
+    text: source.name,
+  })),
+  ...(uncategorizedSources.length > 0
+    ? [{ depth: 2, slug: 'other-sources', text: 'Other Sources' }]
+    : []),
+];
+---
+
+<SiteLayout
+  title="Family Sources | Sheridan Family Cookbook"
+  description="Family source notes and recipe lineage for the Sheridan Family Cookbook."
+  recipes={navRecipes}
+  currentPage="sources"
+  toc={toc}
+>
+  <article class="sources-page">
+    <header class="sources-header">
+      <p>Sheridan Family Cookbook</p>
+      <h1>Family Sources</h1>
+      <p>
+        Scroll through the people and source notes connected to the recipes. Recipe source links
+        point here when the source name is registered in the project source list.
+      </p>
+    </header>
+
+    <section id="source-overview" class="sources-section" aria-labelledby="source-overview-title">
+      <div class="section-heading">
+        <p>Table of Contents</p>
+        <h2 id="source-overview-title">People In This Cookbook</h2>
+      </div>
+      <div class="source-toc-grid">
+        {
+          sourcesWithRecipes.map((source) => (
+            <a class="source-toc-card" href={`#source-${source.slug}`}>
+              <strong>{source.name}</strong>
+              <span>{source.relation}</span>
+              <small>{recipeCountLabel(source.recipes.length)}</small>
+            </a>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="sources-section" aria-label="Source details">
+      <div class="source-list">
+        {
+          sourcesWithRecipes.map((source) => {
+            const id = `source-${source.slug}`;
+
+            return (
+              <section class="source-block" id={id} aria-labelledby={`${id}-title`}>
+                <div>
+                  <h2 id={`${id}-title`}>{source.name}</h2>
+                  <p>{source.relation}</p>
+                </div>
+                {source.recipes.length > 0 ? (
+                  <ul>
+                    {source.recipes.map((recipe) => (
+                      <li>
+                        <a href={`/recipes/${recipe.id}/`}>{recipe.data.title}</a>
+                        <span>{recipe.data.category}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No recipes connected yet.</p>
+                )}
+              </section>
+            );
+          })
+        }
+      </div>
+
+      {
+        uncategorizedSources.length > 0 && (
+          <section class="source-block" id="other-sources" aria-labelledby="other-sources-title">
+            <div>
+              <h2 id="other-sources-title">Other Sources</h2>
+              <p>Non-family or not-yet-modeled recipe sources.</p>
+            </div>
+            <ul>
+              {uncategorizedSources.map((source) => (
+                <li>
+                  <span>{source}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      }
+    </section>
+  </article>
+</SiteLayout>
+
+<style>
+  .sources-page {
+    padding: 1.5rem 0 2.5rem;
+  }
+
+  .sources-header,
+  .sources-section {
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: var(--paper);
+    padding: clamp(1.1rem, 3vw, 1.75rem);
+  }
+
+  .sources-header p:first-child,
+  .section-heading p {
+    margin: 0 0 0.4rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .sources-header h1,
+  .section-heading h2 {
+    margin: 0;
+    font-size: clamp(2rem, 4vw, 2.625rem);
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .sources-header p:last-child {
+    max-width: 44rem;
+    margin: 0.8rem 0 0;
+    color: var(--muted);
+  }
+
+  .sources-section {
+    margin-top: 1rem;
+  }
+
+  .source-toc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .source-toc-card {
+    display: grid;
+    gap: 0.2rem;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: var(--paper-strong);
+    color: var(--ink);
+    padding: 0.85rem;
+    text-decoration: none;
+  }
+
+  .source-toc-card:hover,
+  .source-toc-card:focus-visible {
+    border-color: var(--accent);
+    background: var(--nav-hover);
+    outline: 2px solid var(--focus-ring);
+  }
+
+  .source-toc-card span,
+  .source-toc-card small {
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+
+  .source-list {
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .source-block {
+    display: grid;
+    grid-template-columns: minmax(10rem, 0.75fr) minmax(0, 1.25fr);
+    gap: 1rem;
+    scroll-margin-top: 5rem;
+    border-top: 1px solid var(--line);
+    padding-top: 0.9rem;
+  }
+
+  .source-block:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .source-block h2,
+  .source-block p {
+    margin: 0;
+  }
+
+  .source-block h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+
+  .source-block p {
+    color: var(--muted);
+    font-size: 0.92rem;
+  }
+
+  .source-block ul {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .source-block li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 0.45rem;
+    background: var(--paper-strong);
+    padding: 0.45rem 0.6rem;
+  }
+
+  .source-block li span {
+    color: var(--muted);
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 760px) {
+    .sources-page {
+      padding: 0;
+    }
+
+    .sources-header,
+    .sources-section {
+      border-right: 0;
+      border-left: 0;
+      border-radius: 0;
+      padding: 1.15rem 1rem 1.35rem;
+    }
+
+    .source-block {
+      grid-template-columns: 1fr;
+      gap: 0.65rem;
+    }
+
+    .source-block li {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+  }
+</style>

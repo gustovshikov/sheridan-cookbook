@@ -1,0 +1,10 @@
+.data
+.git
+.obsidian
+.playwright-mcp
+node_modules
+apps/site/node_modules
+apps/site/dist
+apps/site/.astro
+apps/site/public/resources
+apps/site/src/content/recipes
